@@ -22,3 +22,6 @@ __pycache__/
 .vscode/
 .idea/
 *.swp
+
+# Instructions
+instruction.md

@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import FastAPI, Depends, Request, Response, status, Form, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse, JSONResponse
 from fastapi.exception_handlers import http_exception_handler as default_http_exception_handler
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .config import settings
@@ -37,6 +38,7 @@ class AppServer:
 		self.app = FastAPI()
 		self.bot = BotRunner()
 		self._setup_routes()
+		self.app.mount("/static", StaticFiles(directory=str(Path(__file__).parent.parent)), name="static")
 
 	def _setup_routes(self) -> None:
 		app = self.app
@@ -82,6 +84,10 @@ class AppServer:
 		@app.get("/auth", response_class=HTMLResponse)
 		async def auth_page(request: Request, _: auth):
 			return templates.TemplateResponse("auth.html", {"request": request})
+
+		@app.get("/monke", response_class=HTMLResponse)
+		async def monke_page(request: Request, _: auth):
+			return templates.TemplateResponse("monke.html", {"request": request})
 
 		@app.post("/auth")
 		async def auth_submit(request: Request, _: auth, code: str = Form(None), password: str = Form(None), resend: str = Form(None)):

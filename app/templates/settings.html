@@ -25,6 +25,15 @@
 		button{ background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px 12px; cursor:pointer; width:160px; }
 		button:hover{ border-color:var(--accent); }
 		.helper{ grid-column: 1 / -1; color:var(--muted); font-size:12px; }
+		.header-monke {
+			margin-left: auto;
+		}
+		.header-monke img {
+			height: 44px;
+			width: auto;
+			border-radius: 6px;
+			display: block;
+		}
 	</style>
 </head>
 <body>
@@ -35,6 +44,7 @@
 			<a href="/settings">Настройки</a>
 			<a href="/logs">Логи</a>
 			<a href="/auth">Авторизация</a>
+			<a href="/monke" class="header-monke"><img src="/static/monke.gif" alt="monke"></a>
 		</div>
 		<h1>Настройки</h1>
 		<form method="post" action="/settings">
