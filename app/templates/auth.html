@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Авторизация в Telegram</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		:root{ --bg:#0b0c10; --panel:#111318; --muted:#8b95a7; --text:#e7eaf0; --accent:#5b9cff; --border:#1d2230; }
+		*{ box-sizing: border-box; }
+		body{ margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+		.container{ max-width: 700px; margin: 0 auto; padding: 24px; }
+		.nav{ display:flex; gap:10px; align-items:center; margin-bottom: 18px; }
+		.nav a{ color:var(--muted); text-decoration:none; padding:8px 10px; border-radius:8px; }
+		.nav a:hover{ background:var(--panel); color:var(--text); }
+		h1{ font-size:22px; margin: 8px 0 16px; }
+		p{ color:var(--muted); }
+		form{ display:flex; gap:10px; flex-wrap:wrap; margin: 10px 0; }
+		input{ background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px; width: 300px; }
+		button{ background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px 12px; cursor:pointer; }
+		button:hover{ border-color:var(--accent); }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="nav">
+			<a href="/">Панель</a>
+			<a href="/channels">Каналы</a>
+			<a href="/settings">Настройки</a>
+			<a href="/logs">Логи</a>
+			<a href="/auth">Авторизация</a>
+		</div>
+		<h1>Авторизация в Telegram</h1>
+		<p>Введите код из Telegram (или пароль 2FA, если потребуется).</p>
+		<form method="post" action="/auth">
+			<input name="code" placeholder="Код из Telegram" />
+			<button>Отправить код</button>
+		</form>
+		<form method="post" action="/auth">
+			<input name="password" placeholder="Пароль 2FA (если запрошен)" type="password" />
+			<button>Отправить пароль</button>
+		</form>
+		<form method="post" action="/auth">
+			<input type="hidden" name="resend" value="1" />
+			<button>Отправить код повторно</button>
+		</form>
+		<form method="post" action="/auth/reset-session">
+			<button style="border-color:#ea4335">Сбросить сессию</button>
+		</form>
+	</div>
+	<script>
+	(function() {
+		const token = localStorage.getItem('admin-token');
+		if (!token) {
+			window.location.href = '/enter-token?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+			return;
+		}
+
+		async function fetchWithAuth(url, options = {}) {
+			const headers = { ...options.headers, 'Authorization': 'Bearer ' + token };
+			const response = await fetch(url, { ...options, headers });
+			if (response.status === 401) {
+				localStorage.removeItem('admin-token');
+				window.location.href = '/enter-token';
+			}
+			return response;
+		}
+
+		document.addEventListener('DOMContentLoaded', () => {
+			document.querySelectorAll('form').forEach(form => {
+				form.addEventListener('submit', async (e) => {
+					e.preventDefault();
+					const formData = new FormData(form);
+					const response = await fetchWithAuth(form.action, {
+						method: 'POST',
+						body: formData
+					});
+					if (response.ok) {
+						// Show a quick "Action sent!" message
+						const button = form.querySelector('button');
+						const originalText = button.textContent;
+						button.textContent = 'Отправлено!';
+						setTimeout(() => {
+							button.textContent = originalText;
+						}, 2000);
+					} else {
+						alert('An error occurred.');
+					}
+				});
+			});
+		});
+	})();
+	</script>
+</body>
+</html>

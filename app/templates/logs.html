@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Логи</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		:root{ --bg:#0b0c10; --panel:#111318; --muted:#8b95a7; --text:#e7eaf0; --border:#1d2230; }
+		*{ box-sizing: border-box; }
+		body{ margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+		.container{ max-width: 1000px; margin: 0 auto; padding: 24px; }
+		.nav{ display:flex; gap:10px; align-items-center; margin-bottom: 18px; }
+		.nav a{ color:var(--muted); text-decoration:none; padding:8px 10px; border-radius:8px; }
+		.nav a:hover{ background:var(--panel); color:var(--text); }
+		h1{ font-size:22px; margin: 8px 0 16px; }
+		pre{ background:#0e0f14; color:#c8d1e6; padding:12px; height:70vh; overflow:auto; border:1px solid var(--border); border-radius:12px; white-space: pre-wrap; }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="nav">
+			<a href="/">Панель</a>
+			<a href="/channels">Каналы</a>
+			<a href="/settings">Настройки</a>
+			<a href="/logs">Логи</a>
+			<a href="/auth">Авторизация</a>
+		</div>
+		<h1>Логи</h1>
+		<pre id="log">{% for line in lines %}{{ line }}
+{% endfor %}</pre>
+	</div>
+	<script>
+	(function() {
+		const token = localStorage.getItem('admin-token');
+		if (!token) {
+			window.location.href = '/enter-token?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+			return;
+		}
+
+		let es = null;
+
+		function connectStream() {
+			if (es) {
+				es.close();
+			}
+			const pre = document.getElementById('log');
+			// EventSource doesn't support custom headers, so we have to pass the token as a query param.
+			// This is the only place where we'll do this, and it's safer because it's an AJAX call,
+			// not a main page navigation. The URL is less likely to be logged or stored in history.
+			const streamUrl = `/logs/stream?token=${encodeURIComponent(token)}`;
+			es = new EventSource(streamUrl, { withCredentials: false });
+			es.onmessage = (ev) => {
+				pre.textContent += ev.data + '\n';
+				pre.scrollTop = pre.scrollHeight;
+			};
+			es.onerror = () => {
+				// Browser will automatically try to reconnect on error.
+				// If token is invalid, server will close connection, and we might get here.
+				// Let's check the token.
+				fetch('/health', { headers: { 'Authorization': 'Bearer ' + token }})
+					.then(response => {
+						if (response.status === 401) {
+							localStorage.removeItem('admin-token');
+							window.location.href = '/enter-token';
+						}
+					});
+			};
+		}
+
+		window.onload = () => {
+			const pre = document.getElementById('log');
+			pre.scrollTop = pre.scrollHeight;
+			connectStream();
+		};
+	})();
+	</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Enter Token</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		:root{ --bg:#0b0c10; --panel:#111318; --muted:#8b95a7; --text:#e7eaf0; --accent:#5b9cff; --border:#1d2230; }
+		*{ box-sizing: border-box; }
+		body{ margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+		.container{ max-width: 560px; margin: 0 auto; padding: 40px 24px; }
+		.card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; }
+		label{ display:flex; flex-direction:column; gap:6px; color:var(--muted); font-size:14px; }
+		input{ background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px; width:100%; }
+		button{ margin-top:12px; background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px 12px; cursor:pointer; }
+		button:hover{ border-color:var(--accent); }
+		.small{ color:var(--muted); font-size:12px; margin-top:6px; }
+	</style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+</head>
+<body>
+    <main class="container">
+        <h1>Enter Access Token</h1>
+        <form id="token-form">
+            <input type="password" name="token" placeholder="Your access token" required>
+            <button type="submit">Submit</button>
+        </form>
+    </main>
+    <script>
+        document.getElementById('token-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const token = e.target.elements.token.value;
+            if (token) {
+                localStorage.setItem('admin-token', token);
+                const nextUrl = new URLSearchParams(window.location.search).get('next') || '/';
+                window.location.href = nextUrl;
+            }
+        });
+    </script>
+</body>
+</html>
+

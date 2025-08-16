@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Настройки</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		:root{ --bg:#0b0c10; --panel:#111318; --muted:#8b95a7; --text:#e7eaf0; --accent:#5b9cff; --border:#1d2230; }
+		*{ box-sizing: border-box; }
+		body{ margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+		.container{ max-width: 900px; margin: 0 auto; padding: 24px; }
+		.nav{ display:flex; gap:10px; align-items:center; margin-bottom: 18px; }
+		.nav a{ color:var(--muted); text-decoration:none; padding:8px 10px; border-radius:8px; }
+		.nav a:hover{ background:var(--panel); color:var(--text); }
+		h1{ font-size:22px; margin: 8px 0 16px; }
+		form{ display:grid; grid-template-columns: 1fr; gap:14px; }
+		label{ display:flex; flex-direction:column; gap:6px; color:var(--muted); font-size:14px; }
+		input, textarea{ background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px; width:100%; }
+		select{ appearance: none; background: var(--panel) url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right .75rem center/1.5em 1.5em; color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px; width:100%; }
+		textarea{ min-height: 120px; }
+		.section-card{ grid-column: 1 / -1; border:1px solid var(--border); border-radius:12px; padding:14px; }
+		.section-title{ margin:0 0 10px; color:var(--text); font-weight:600; font-size:15px; opacity:0.95; }
+		.section-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+		.full{ grid-column: 1 / -1; }
+		button{ background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px 12px; cursor:pointer; width:160px; }
+		button:hover{ border-color:var(--accent); }
+		.helper{ grid-column: 1 / -1; color:var(--muted); font-size:12px; }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="nav">
+			<a href="/">Панель</a>
+			<a href="/channels">Каналы</a>
+			<a href="/settings">Настройки</a>
+			<a href="/logs">Логи</a>
+			<a href="/auth">Авторизация</a>
+		</div>
+		<h1>Настройки</h1>
+		<form method="post" action="/settings">
+			<div class="section-card">
+				<div class="section-title">Нейрокомментинг</div>
+				<div class="section-grid">
+					<label class="full"><span title="Системный промпт для модели, определяющий стиль и тон комментариев. В промпт автоматически добавляется текст поста и пикча." style="cursor: help;">Commenting: Prompt</span>
+						<textarea name="prompt" rows="5">{{ values.get('prompt') or '' }}</textarea>
+					</label>
+					<label><span title="Имя модели OpenAI для генерации комментариев, например, gpt-4o-mini или gpt-5. Если пусто, используется модель по умолчанию." style="cursor: help;">Commenting: Model</span>
+						<input name="model" value="{{ values.get('model') or model_default }}" />
+					</label>
+					<label><span title="Креативность [0..1]. Чем выше, тем разнообразнее ответы. Не применяется к GPT‑5. Если пусто, параметр не используется." style="cursor: help;">Commenting: Temperature</span>
+						<input name="temperature" value="{{ values.get('temperature') or '' }}" />
+					</label>
+					<label><span title="Top-P сэмплирование [0..1]. Ограничивает выбор токенов. Не применяется к GPT‑5. Если пусто, параметр не используется." style="cursor: help;">Commenting: Top P</span>
+						<input name="top_p" value="{{ values.get('top_p') or '' }}" />
+					</label>
+					<label><span title="Максимальная длина ответа в токенах. Если пусто, параметр не используется." style="cursor: help;">Commenting: Max Tokens</span>
+						<input name="max_tokens" value="{{ values.get('max_tokens') or '' }}" />
+					</label>
+					<label><span title="Только для GPT‑5. Глубина рассуждений (minimal/low/medium/high). Если пусто, параметр не используется." style="cursor: help;">Commenting: GPT‑5 Effort</span>
+						<select name="gpt5_effort">
+							<option value="" {% if not values.get('gpt5_effort') %}selected{% endif %}></option>
+							<option value="minimal" {% if values.get('gpt5_effort') == 'minimal' %}selected{% endif %}>minimal</option>
+							<option value="low" {% if values.get('gpt5_effort') == 'low' %}selected{% endif %}>low</option>
+							<option value="medium" {% if values.get('gpt5_effort') == 'medium' %}selected{% endif %}>medium</option>
+							<option value="high" {% if values.get('gpt5_effort') == 'high' %}selected{% endif %}>high</option>
+						</select>
+					</label>
+					<label><span title="Только для GPT‑5. Многословность ответа (low/medium/high). Если пусто, параметр не используется." style="cursor: help;">Commenting: GPT‑5 Verbosity</span>
+						<select name="gpt5_verbosity">
+							<option value="" {% if not values.get('gpt5_verbosity') %}selected{% endif %}></option>
+							<option value="low" {% if values.get('gpt5_verbosity') == 'low' %}selected{% endif %}>low</option>
+							<option value="medium" {% if values.get('gpt5_verbosity') == 'medium' %}selected{% endif %}>medium</option>
+							<option value="high" {% if values.get('gpt5_verbosity') == 'high' %}selected{% endif %}>high</option>
+						</select>
+					</label>
+				</div>
+			</div>
+
+			<div class="section-card">
+				<div class="section-title">Проверка на рекламу (AI)</div>
+				<div class="section-grid">
+					<label class="full"><span title="Системный промпт для определения рекламы. Должен возвращать одно число [0..1] — вероятность, что пост НЕ является рекламой. В промпт автоматически добавляется текст поста и пикча." style="cursor: help;">Ads check: Prompt</span>
+						<textarea name="ads_prompt" rows="4">{{ values.get('ads_prompt') or '' }}</textarea>
+					</label>
+					<label><span title="Имя модели OpenAI для определения рекламы. Если пусто, используется модель для комментирования." style="cursor: help;">Ads check: Model</span>
+						<input name="ads_check_ai" value="{{ values.get('ads_check_ai') or (values.get('model') or model_default) }}" />
+					</label>
+					<label><span title="Temperature для AI-проверки на рекламу. Не применяется к GPT‑5. Если пусто, параметр не используется." style="cursor: help;">Ads check: Temperature</span>
+						<input name="ads_temperature" value="{{ values.get('ads_temperature') or '' }}" />
+					</label>
+					<label><span title="Top-P для AI-проверки на рекламу. Не применяется к GPT‑5. Если пусто, параметр не используется." style="cursor: help;">Ads check: Top P</span>
+						<input name="ads_top_p" value="{{ values.get('ads_top_p') or '' }}" />
+					</label>
+					<label><span title="Лимит токенов для ответа классификатора. Если пусто, параметр не используется." style="cursor: help;">Ads check: Max Tokens</span>
+						<input name="ads_max_tokens" value="{{ values.get('ads_max_tokens') or '' }}" />
+					</label>
+					<label><span title="Только для GPT‑5. Глубина рассуждений классификатора (minimal/low/medium/high). Если пусто, параметр не используется." style="cursor: help;">Ads check: GPT‑5 Effort</span>
+						<select name="ads_gpt5_effort">
+							<option value="" {% if not values.get('ads_gpt5_effort') %}selected{% endif %}></option>
+							<option value="minimal" {% if values.get('ads_gpt5_effort') == 'minimal' %}selected{% endif %}>minimal</option>
+							<option value="low" {% if values.get('ads_gpt5_effort') == 'low' %}selected{% endif %}>low</option>
+							<option value="medium" {% if values.get('ads_gpt5_effort') == 'medium' %}selected{% endif %}>medium</option>
+							<option value="high" {% if values.get('ads_gpt5_effort') == 'high' %}selected{% endif %}>high</option>
+						</select>
+					</label>
+					<label><span title="Только для GPT‑5. Многословность ответа классификатора (low/medium/high). Если пусто, параметр не используется." style="cursor: help;">Ads check: GPT‑5 Verbosity</span>
+						<select name="ads_gpt5_verbosity">
+							<option value="" {% if not values.get('ads_gpt5_verbosity') %}selected{% endif %}></option>
+							<option value="low" {% if values.get('ads_gpt5_verbosity') == 'low' %}selected{% endif %}>low</option>
+							<option value="medium" {% if values.get('ads_gpt5_verbosity') == 'medium' %}selected{% endif %}>medium</option>
+							<option value="high" {% if values.get('ads_gpt5_verbosity') == 'high' %}selected{% endif %}>high</option>
+						</select>
+					</label>
+				</div>
+			</div>
+
+			<div class="section-card">
+				<div class="section-title">Отправка комментариев</div>
+				<div class="section-grid">
+					<label><span title="Минимальная задержка перед отправкой комментария (в секундах)." style="cursor: help;">Sending: Min Delay (s)</span>
+						<input name="min_delay" value="{{ values.get('min_delay') or '5' }}" />
+					</label>
+					<label><span title="Максимальная задержка перед отправкой комментария (в секундах)." style="cursor: help;">Sending: Max Delay (s)</span>
+						<input name="max_delay" value="{{ values.get('max_delay') or '10' }}" />
+					</label>
+					<label><span title="Тестовый режим (1 - да, 0 - нет). Бот выполняет все шаги, но не отправляет комментарии в Telegram." style="cursor: help;">Sending: Dry Run</span>
+						<input name="dry_run" value="{{ values.get('dry_run') or '0' }}" />
+					</label>
+				</div>
+			</div>
+
+			<div class="section-card">
+				<div class="section-title">Фильтрация</div>
+				<div class="section-grid">
+					<label><span title="Допустимая вероятность того, что пост является рекламой (число от 0 до 1). Пост будет пропущен, если вычисленная вероятность рекламы СТРОГО ВЫШЕ этого значения (P > порог)." style="cursor: help;">Filtering: Ad probability threshold</span>
+						<input name="ad_prob_thr" value="{{ values.get('ad_prob_thr') or '0.7' }}" />
+					</label>
+					<label><span title="Минимальное количество постов для пропуска после успешного комментария." style="cursor: help;">Filtering: Skip min posts</span>
+						<input name="skip_min" value="{{ values.get('skip_min') or '0' }}" />
+					</label>
+					<label><span title="Максимальное количество постов для пропуска после успешного комментария." style="cursor: help;">Filtering: Skip max posts</span>
+						<input name="skip_max" value="{{ values.get('skip_max') or '0' }}" />
+					</label>
+				</div>
+			</div>
+
+			<div class="section-card">
+				<div class="section-title">Инициализация и кэш</div>
+				<div class="section-grid">
+					<label><span title="Минимальная пауза между проверками каналов при инициализации (в секундах)." style="cursor: help;">Init: Min delay (s)</span>
+						<input name="group_init_min_delay" value="{{ values.get('group_init_min_delay') or '1' }}" />
+					</label>
+					<label><span title="Максимальная пауза между проверками каналов при инициализации (в секундах)." style="cursor: help;">Init: Max delay (s)</span>
+						<input name="group_init_max_delay" value="{{ values.get('group_init_max_delay') or '3' }}" />
+					</label>
+				</div>
+			</div>
+
+			<div class="section-card">
+				<div class="section-title">Имитация действий</div>
+				<div class="section-grid">
+					<label><span title="Имитировать набор текста перед отправкой (1 - да, 0 - нет)." style="cursor: help;">Actions: Typing enabled</span>
+						<input name="typing_enabled" value="{{ values.get('typing_enabled') or '1' }}" />
+					</label>
+					<label><span title="Минимальная длительность имитации набора (в секундах)." style="cursor: help;">Actions: Typing min (s)</span>
+						<input name="typing_min" value="{{ values.get('typing_min') or '1' }}" />
+					</label>
+					<label><span title="Максимальная длительность имитации набора (в секундах)." style="cursor: help;">Actions: Typing max (s)</span>
+						<input name="typing_max" value="{{ values.get('typing_max') or '5' }}" />
+					</label>
+					<label><span title="Имитировать прочтение входящих сообщений (1 - да, 0 - нет)." style="cursor: help;">Actions: Simulate read</span>
+						<input name="simulate_read_enabled" value="{{ values.get('simulate_read_enabled') or '0' }}" />
+					</label>
+				</div>
+			</div>
+
+			<div class="section-card">
+				<div class="section-title">Вступление в каналы и чаты</div>
+				<div class="section-grid">
+					<label><span title="Минимальный cooldown при ошибке PeerFlood (в часах)." style="cursor: help;">Joins: PeerFlood min cooldown (h)</span>
+						<input name="peer_flood_cooldown_min_h" value="{{ values.get('peer_flood_cooldown_min_h') or '12' }}" />
+					</label>
+					<label><span title="Максимальный cooldown при ошибке PeerFlood (в часах)." style="cursor: help;">Joins: PeerFlood max cooldown (h)</span>
+						<input name="peer_flood_cooldown_max_h" value="{{ values.get('peer_flood_cooldown_max_h') or '48' }}" />
+					</label>
+					<label><span title="Максимум попыток вступления в чаты за час. Новые аккаунты: 1-2, прогретые: 3-5." style="cursor: help;">Joins: Limit per hour</span>
+						<input name="join_limit_per_hour" value="{{ values.get('join_limit_per_hour') or '10' }}" />
+					</label>
+					<label><span title="Минимальный интервал между попытками вступления (в секундах). Рекомендуется 600-1200." style="cursor: help;">Joins: Min interval (s)</span>
+						<input name="join_min_interval_s" value="{{ values.get('join_min_interval_s') or '600' }}" />
+					</label>
+					<label><span title="Максимальный интервал между попытками вступления (в секундах)." style="cursor: help;">Joins: Max interval (s)</span>
+						<input name="join_max_interval_s" value="{{ values.get('join_max_interval_s') or '1200' }}" />
+					</label>
+					<label><span title="Автоматически вступать в связанные чаты для комментирования (1 - да, 0 - нет)." style="cursor: help;">Joins: Auto-join discussions</span>
+						<input name="auto_join_discussions" value="{{ values.get('auto_join_discussions') or '1' }}" />
+					</label>
+					<label><span title="Автоматически подписываться на сам канал (1 - да, 0 - нет)." style="cursor: help;">Joins: Auto-join channels</span>
+						<input name="auto_join_channels" value="{{ values.get('auto_join_channels') or '1' }}" />
+					</label>
+				</div>
+			</div>
+
+			<div class="section-card">
+				<div class="section-title">Сеть</div>
+				<div class="section-grid">
+					<label class="full"><span title="URL прокси. Для Telegram: socks5/http/https. Для OpenAI: http/https. Если пусто, прокси не используется." style="cursor: help;">Network: Proxy URL</span>
+						<input name="proxy_url" value="{{ values.get('proxy_url') or '' }}" />
+					</label>
+				</div>
+			</div>
+
+			<div class="section-card">
+				<div class="section-title">Секреты: Telegram</div>
+				<div class="section-grid">
+					<label><span title="Ваш API ID с my.telegram.org -> API development tools." style="cursor: help;">Secrets: TELEGRAM_API_ID</span>
+						<input name="telegram_api_id" value="{{ values.get('telegram_api_id') or '' }}" />
+					</label>
+					<label><span title="Ваш API Hash с my.telegram.org -> API development tools." style="cursor: help;">Secrets: TELEGRAM_API_HASH</span>
+						<input name="telegram_api_hash" value="{{ values.get('telegram_api_hash') or '' }}" />
+					</label>
+					<label class="full"><span title="Телефон аккаунта Telegram в формате +79991234567." style="cursor: help;">Secrets: TELEGRAM_PHONE</span>
+						<input name="telegram_phone" value="{{ values.get('telegram_phone') or '' }}" />
+					</label>
+				</div>
+			</div>
+
+			<div class="section-card">
+				<div class="section-title">Секреты: OpenAI</div>
+				<div class="section-grid">
+					<label class="full"><span title="Ключ доступа OpenAI (начинается с sk-...)." style="cursor: help;">Secrets: OPENAI_API_KEY</span>
+						<input name="openai_api_key" value="{{ values.get('openai_api_key') or '' }}" />
+					</label>
+					<div class="helper">Для применения новых секретных ключей требуется перезапуск (кнопка на главной панели).</div>
+				</div>
+			</div>
+
+			<button>Сохранить</button>
+		</form>
+	</div>
+	<script>
+	(function() {
+		const token = localStorage.getItem('admin-token');
+		if (!token) {
+			window.location.href = '/enter-token?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+			return;
+		}
+
+		async function fetchWithAuth(url, options = {}) {
+			const headers = { ...options.headers, 'Authorization': 'Bearer ' + token };
+			const response = await fetch(url, { ...options, headers });
+			if (response.status === 401) {
+				localStorage.removeItem('admin-token');
+				window.location.href = '/enter-token';
+			}
+			return response;
+		}
+
+		document.addEventListener('DOMContentLoaded', () => {
+			document.querySelector('form').addEventListener('submit', async (e) => {
+				e.preventDefault();
+				const form = e.target;
+				const formData = new FormData(form);
+				const response = await fetchWithAuth(form.action, {
+					method: 'POST',
+					body: formData
+				});
+
+				if (response.ok) {
+					// Show a quick "saved" message
+					const button = form.querySelector('button');
+					const originalText = button.textContent;
+					button.textContent = 'Сохранено!';
+					button.style.borderColor = 'var(--good)';
+					setTimeout(() => {
+						button.textContent = originalText;
+						button.style.borderColor = '';
+					}, 2000);
+				} else {
+					alert('An error occurred during save.');
+				}
+			});
+		});
+	})();
+	</script>
+</body>
+</html>

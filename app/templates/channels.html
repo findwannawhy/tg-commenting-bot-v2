@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Каналы</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		:root{ --bg:#0b0c10; --panel:#111318; --muted:#8b95a7; --text:#e7eaf0; --accent:#5b9cff; --border:#1d2230; }
+		*{ box-sizing: border-box; }
+		body{ margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+		.container{ max-width: 1000px; margin: 0 auto; padding: 24px; }
+		.nav{ display:flex; gap:10px; align-items:center; margin-bottom: 18px; }
+		.nav a{ color:var(--muted); text-decoration:none; padding:8px 10px; border-radius:8px; }
+		.nav a:hover{ background:var(--panel); color:var(--text); }
+		h1{ font-size:22px; margin: 8px 0 16px; }
+		.form{ display:flex; gap:10px; flex-wrap:wrap; margin: 0 0 14px; }
+		input{ background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:8px 10px; }
+		button{ background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:8px 12px; cursor:pointer; }
+		button:hover{ border-color:var(--accent); }
+		.table{ width:100%; border-collapse: collapse; }
+		.table th,.table td{ border-bottom:1px solid var(--border); padding:10px; text-align:left; }
+		.badge{ color:var(--muted); font-size:12px; }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="nav">
+			<a href="/">Панель</a>
+			<a href="/channels">Каналы</a>
+			<a href="/settings">Настройки</a>
+			<a href="/logs">Логи</a>
+			<a href="/auth">Авторизация</a>
+		</div>
+		<h1>Каналы</h1>
+		<form class="form" method="post" action="/channels/add">
+			<input name="url" placeholder="@channel or https://t.me/+..." style="flex:1 1 280px" required />
+			<input name="note" placeholder="Заметка" style="flex:1 1 280px" />
+			<button>Добавить</button>
+		</form>
+		<table class="table">
+			<tr><th style="width:60px">ID</th><th>URL</th><th>Название</th><th>Заметка</th><th style="width:120px">Статус</th><th style="width:200px">Действия</th></tr>
+			{% for ch in channels %}
+			<tr>
+				<td class="badge">{{ ch.id }}</td>
+				<td>{{ ch.url }}</td>
+				<td>{{ ch.channel_name or '' }}</td>
+				<td>{{ ch.note }}</td>
+				<td class="badge">{{ 'ВКЛ' if ch.enabled == 1 else 'ВЫКЛ' }}</td>
+				<td>
+					<form class="inline" method="post" action="/channels/{{ ch.id }}/toggle" style="display:inline-block;margin-right:8px;">
+						<button>{{ 'Выключить' if ch.enabled == 1 else 'Включить' }}</button>
+					</form>
+					<form class="inline" method="post" action="/channels/{{ ch.id }}/delete">
+						<button>Удалить</button>
+					</form>
+				</td>
+			</tr>
+			{% endfor %}
+		</table>
+	</div>
+	<script>
+	(function() {
+		const token = localStorage.getItem('admin-token');
+		if (!token) {
+			window.location.href = '/enter-token?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+			return;
+		}
+
+		async function fetchWithAuth(url, options = {}) {
+			const headers = { ...options.headers, 'Authorization': 'Bearer ' + token };
+			const response = await fetch(url, { ...options, headers });
+			if (response.status === 401) {
+				localStorage.removeItem('admin-token');
+				window.location.href = '/enter-token';
+			}
+			return response;
+		}
+
+		document.addEventListener('DOMContentLoaded', () => {
+			document.querySelectorAll('form').forEach(form => {
+				form.addEventListener('submit', async (e) => {
+					e.preventDefault();
+					const formData = new FormData(form);
+					const response = await fetchWithAuth(form.action, {
+						method: 'POST',
+						body: formData
+					});
+					if (response.ok) {
+						window.location.reload();
+					} else {
+						alert('An error occurred.');
+					}
+				});
+			});
+		});
+	})();
+	</script>
+</body>
+</html>
