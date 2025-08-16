@@ -55,49 +55,20 @@
 		<div class="footer">Используйте навигацию для управления каналами, настройками и просмотра логов.</div>
 	</div>
 	<script>
-	(function() {
-		const token = localStorage.getItem('admin-token');
-		if (!token) {
-			window.location.href = '/enter-token?next=' + encodeURIComponent(window.location.pathname + window.location.search);
-			return;
-		}
-
-		async function fetchWithAuth(url, options = {}) {
-			const headers = { ...options.headers, 'Authorization': 'Bearer ' + token };
-			const response = await fetch(url, { ...options, headers });
-			if (response.status === 401) {
-				localStorage.removeItem('admin-token');
-				window.location.href = '/enter-token';
-			}
-			return response;
-		}
-
-		async function loadMetrics() {
-			const r = await fetchWithAuth('/metrics');
+	// This script is no longer needed with cookie-based auth.
+	// We can add back the metrics loading part if needed, but without the complex auth logic.
+	async function loadMetrics() {
+		const r = await fetch('/metrics');
+		if (r.ok) {
 			document.getElementById('metrics').textContent = JSON.stringify(await r.json(), null, 2);
+		} else if (r.status === 401) {
+			window.location.href = '/enter-token';
 		}
-
-		document.addEventListener('DOMContentLoaded', () => {
-			loadMetrics();
-			document.getElementById('refresh-metrics').addEventListener('click', loadMetrics);
-
-			document.querySelectorAll('form').forEach(form => {
-				form.addEventListener('submit', async (e) => {
-					e.preventDefault();
-					const formData = new FormData(form);
-					const response = await fetchWithAuth(form.action, {
-						method: 'POST',
-						body: formData
-					});
-					if (response.ok) {
-						window.location.reload();
-					} else {
-						alert('An error occurred.');
-					}
-				});
-			});
-		});
-	})();
+	}
+	document.addEventListener('DOMContentLoaded', () => {
+		loadMetrics();
+		document.getElementById('refresh-metrics').addEventListener('click', loadMetrics);
+	});
 	</script>
 </body>
 </html>

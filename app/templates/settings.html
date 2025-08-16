@@ -238,50 +238,5 @@
 			<button>Сохранить</button>
 		</form>
 	</div>
-	<script>
-	(function() {
-		const token = localStorage.getItem('admin-token');
-		if (!token) {
-			window.location.href = '/enter-token?next=' + encodeURIComponent(window.location.pathname + window.location.search);
-			return;
-		}
-
-		async function fetchWithAuth(url, options = {}) {
-			const headers = { ...options.headers, 'Authorization': 'Bearer ' + token };
-			const response = await fetch(url, { ...options, headers });
-			if (response.status === 401) {
-				localStorage.removeItem('admin-token');
-				window.location.href = '/enter-token';
-			}
-			return response;
-		}
-
-		document.addEventListener('DOMContentLoaded', () => {
-			document.querySelector('form').addEventListener('submit', async (e) => {
-				e.preventDefault();
-				const form = e.target;
-				const formData = new FormData(form);
-				const response = await fetchWithAuth(form.action, {
-					method: 'POST',
-					body: formData
-				});
-
-				if (response.ok) {
-					// Show a quick "saved" message
-					const button = form.querySelector('button');
-					const originalText = button.textContent;
-					button.textContent = 'Сохранено!';
-					button.style.borderColor = 'var(--good)';
-					setTimeout(() => {
-						button.textContent = originalText;
-						button.style.borderColor = '';
-					}, 2000);
-				} else {
-					alert('An error occurred during save.');
-				}
-			});
-		});
-	})();
-	</script>
 </body>
 </html>

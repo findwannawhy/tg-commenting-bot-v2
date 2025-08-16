@@ -23,18 +23,8 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
 def auth_dep(request: Request):
-	bearer = request.headers.get("Authorization", "")
-	ok = False
-	if bearer.startswith("Bearer ") and bearer.split(" ", 1)[1] == settings.admin_token:
-		ok = True
-
-	# Allow token in query param ONLY for log stream, as EventSource doesn't support headers
-	if not ok and request.url.path == "/logs/stream":
-		token_q = request.query_params.get("token")
-		if token_q and token_q == settings.admin_token:
-			ok = True
-
-	if not ok:
+	token = request.cookies.get("admin_token_cookie")
+	if not token or token != settings.admin_token:
 		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 	return True
 
@@ -73,6 +63,17 @@ class AppServer:
 		async def enter_token(request: Request):
 			next_url = request.query_params.get("next", "/")
 			return templates.TemplateResponse("token.html", {"request": request, "next": next_url})
+
+		@app.post("/login")
+		async def login(response: Response, token: str = Form(...), next: str = Form("/")):
+			if token == settings.admin_token:
+				# Set cookie and redirect
+				resp = RedirectResponse(url=next or "/", status_code=303)
+				resp.set_cookie(key="admin_token_cookie", value=token, httponly=True, samesite="strict")
+				return resp
+			else:
+				# Failed login, redirect back to token page with an error
+				return RedirectResponse(url="/enter-token?error=1", status_code=303)
 
 		@app.get("/", response_class=HTMLResponse)
 		async def dashboard(request: Request, _: auth):

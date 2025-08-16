@@ -58,42 +58,5 @@
 			{% endfor %}
 		</table>
 	</div>
-	<script>
-	(function() {
-		const token = localStorage.getItem('admin-token');
-		if (!token) {
-			window.location.href = '/enter-token?next=' + encodeURIComponent(window.location.pathname + window.location.search);
-			return;
-		}
-
-		async function fetchWithAuth(url, options = {}) {
-			const headers = { ...options.headers, 'Authorization': 'Bearer ' + token };
-			const response = await fetch(url, { ...options, headers });
-			if (response.status === 401) {
-				localStorage.removeItem('admin-token');
-				window.location.href = '/enter-token';
-			}
-			return response;
-		}
-
-		document.addEventListener('DOMContentLoaded', () => {
-			document.querySelectorAll('form').forEach(form => {
-				form.addEventListener('submit', async (e) => {
-					e.preventDefault();
-					const formData = new FormData(form);
-					const response = await fetchWithAuth(form.action, {
-						method: 'POST',
-						body: formData
-					});
-					if (response.ok) {
-						window.location.reload();
-					} else {
-						alert('An error occurred.');
-					}
-				});
-			});
-		});
-	})();
-	</script>
 </body>
 </html>

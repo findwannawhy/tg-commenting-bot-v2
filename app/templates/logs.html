@@ -31,12 +31,6 @@
 	</div>
 	<script>
 	(function() {
-		const token = localStorage.getItem('admin-token');
-		if (!token) {
-			window.location.href = '/enter-token?next=' + encodeURIComponent(window.location.pathname + window.location.search);
-			return;
-		}
-
 		let es = null;
 
 		function connectStream() {
@@ -44,26 +38,21 @@
 				es.close();
 			}
 			const pre = document.getElementById('log');
-			// EventSource doesn't support custom headers, so we have to pass the token as a query param.
-			// This is the only place where we'll do this, and it's safer because it's an AJAX call,
-			// not a main page navigation. The URL is less likely to be logged or stored in history.
-			const streamUrl = `/logs/stream?token=${encodeURIComponent(token)}`;
-			es = new EventSource(streamUrl, { withCredentials: false });
+			// With cookie-based auth, we don't need to pass the token.
+			// The browser will send the cookie automatically.
+			es = new EventSource('/logs/stream', { withCredentials: false });
 			es.onmessage = (ev) => {
 				pre.textContent += ev.data + '\n';
 				pre.scrollTop = pre.scrollHeight;
 			};
 			es.onerror = () => {
-				// Browser will automatically try to reconnect on error.
-				// If token is invalid, server will close connection, and we might get here.
-				// Let's check the token.
-				fetch('/health', { headers: { 'Authorization': 'Bearer ' + token }})
-					.then(response => {
-						if (response.status === 401) {
-							localStorage.removeItem('admin-token');
-							window.location.href = '/enter-token';
-						}
-					});
+				// If the connection is closed by the server (e.g., auth failure),
+				// the browser will try to reconnect. Let's check if our session is still valid.
+				fetch('/health').then(response => {
+					if (response.status === 401) {
+						window.location.href = '/enter-token';
+					}
+				});
 			};
 		}
 
