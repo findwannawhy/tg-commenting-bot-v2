@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 	admin_token: str = Field(..., alias="ADMIN_TOKEN")
 	host: str = Field("0.0.0.0", alias="HOST")
 	port: int = Field(8000, alias="PORT")
-	log_buffer_size: int = Field(5000, alias="LOG_BUFFER_SIZE")
+	log_buffer_size: int = Field(15000, alias="LOG_BUFFER_SIZE")
 
 	# Session storage
 	sessions_dir: str = Field("sessions", alias="SESSIONS_DIR")

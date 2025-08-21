@@ -40,6 +40,7 @@ class BotRunner:
 		self._join_attempts = deque()
 		self._last_join_at: Optional[datetime] = None
 		self._processed_grouped_ids = deque(maxlen=100)
+		self._post_counter: int = 0
 
 	async def start(self) -> None:
 		if self.running:
@@ -384,19 +385,22 @@ class BotRunner:
 	async def _process_post(self, event, text_override: Optional[str] = None, photo_event_override=None):
 		channel_id = event.chat_id
 		channel_title = getattr(event.chat, 'title', f"ID:{channel_id}")
+		# assign sequential index for this post
+		self._post_counter += 1
+		seq_idx = self._post_counter
 
 		# apply per-channel skip-range at the very beginning: any post is skipped
 		min_skip, max_skip = await self._get_skip_range()
 		remaining = self.skip_counters.get(channel_id, 0)
 		if remaining > 0:
 			self.skip_counters[channel_id] = remaining - 1
-			log_bus.push(f"[{channel_title}] [skip] skipping post (left {remaining - 1})")
+			log_bus.push(f"[{seq_idx}] [{channel_title}] [skip] skipping post (left {remaining - 1})")
 			metrics.inc("skipped_total")
 			return
 
 		if (event.message.video or event.message.video_note or event.message.voice or event.message.audio or
 			event.message.document or event.message.poll or event.message.sticker or event.message.gif):
-			log_bus.push(f"[{channel_title}] [skip] unsupported content type")
+			log_bus.push(f"[{seq_idx}] [{channel_title}] [skip] unsupported content type")
 			metrics.inc("skipped_total")
 			return
 
@@ -417,8 +421,12 @@ class BotRunner:
 			except Exception:
 				image_base64 = None
 
+		# concise start log (before any skips)
+		preview = (post_text or "")[:25] + ("…" if (post_text and len(post_text) > 25) else "")
+		log_bus.push(f"[{seq_idx}] [{channel_title}] [start] Post='{preview}', image={bool(image_base64)}")
+
 		if fast_heuristic_is_ad(post_text):
-			log_bus.push(f"[{channel_title}] [skip] Heuristic: looks like ad → skip")
+			log_bus.push(f"[{seq_idx}] [{channel_title}] [skip] Heuristic: looks like ad → skip")
 			metrics.inc("skipped_total")
 			metrics.inc("skipped_heuristic_total")
 			return
@@ -435,7 +443,6 @@ class BotRunner:
 		)
 		# отдельные настройки для проверки рекламы (перекрывают общие sampling)
 		ads_prompt, ads_temp, ads_top_p, ads_max_tokens, ads_gpt5_effort, ads_gpt5_verbosity = await self._get_ads_ai_settings()
-		log_bus.push(f"[{channel_title}] [ads] call → model={ads_model}, content={content_kind}")
 		ad_probability = await asyncio.to_thread(
 			self.ai.classify_ad_probability,
 			post_text,
@@ -449,10 +456,9 @@ class BotRunner:
 			ads_gpt5_verbosity,
 			channel_context=channel_title,
 		) if self.ai else 0.0
-		log_bus.push(f"[{channel_title}] [ads] result ad_prob={ad_probability:.3f}")
 		threshold = await self._get_threshold()
 		if ad_probability > threshold:
-			log_bus.push(f"[{channel_title}] [skip] LLM says ad_prob={ad_probability:.2f} > {threshold:.2f} → skip")
+			log_bus.push(f"[{seq_idx}] [{channel_title}] [skip] LLM says ad_prob={ad_probability:.2f} > {threshold:.2f} → skip")
 			metrics.inc("skipped_total")
 			metrics.inc("skipped_threshold_total")
 			return
@@ -472,7 +478,7 @@ class BotRunner:
 				channel_context=channel_title,
 			)
 			if not comment:
-				log_bus.push(f"[{channel_title}] [skip] OPENAI_API_KEY not configured → skip")
+				log_bus.push(f"[{seq_idx}] [{channel_title}] [skip] OPENAI_API_KEY not configured → skip")
 				metrics.inc("skipped_total")
 				return
 
@@ -480,22 +486,31 @@ class BotRunner:
 		next_skip = random.randint(min(min_skip, max_skip), max(min_skip, max_skip))
 		self.skip_counters[channel_id] = next_skip
 		if await self._is_dry_run():
-			log_bus.push(f"[{channel_title}] [dry-run] would send → {comment[:120]} (next skip {next_skip})")
+			log_bus.push(f"[{seq_idx}] [{channel_title}] [dry-run] would send → {comment[:120]} (next skip {next_skip})")
 			metrics.inc("comments_sent_total")
 			return
 
-		# delay before sending (not applied in dry-run)
+		# plan delays before sending (not applied in dry-run)
 		min_d, max_d = await self._get_delays()
 		delay = random.randint(min(min_d, max_d), max(min_d, max_d))
+		# plan typing
+		typing_secs = 0
+		try:
+			if await self._is_typing_enabled():
+				min_t, max_t = await self._get_typing_delays()
+				typing_secs = random.randint(min(min_t, max_t), max(min_t, max_t))
+		except Exception:
+			typing_secs = 0
+		# single concise sending log
+		log_bus.push(f"[{seq_idx}] [{channel_title}] [sending] Comment \"{comment}\" will be sent with sleep {delay}s and {typing_secs}s typing")
 		if delay > 0:
-			log_bus.push(f"[{channel_title}] [send] Sleeping {delay}s before sending…")
 			await asyncio.sleep(delay)
 
 		with metrics.time_tg():
-			await self._send_comment(event.client, event.chat_id, event.message.id, channel_title, comment)
+			await self._send_comment(event.client, event.chat_id, event.message.id, channel_title, comment, typing_secs=typing_secs, seq_idx=seq_idx)
 		metrics.inc("comments_sent_total")
 
-	async def _send_comment(self, client, channel_id: int, message_id: int, channel_name: str, comment_text: str):
+	async def _send_comment(self, client, channel_id: int, message_id: int, channel_name: str, comment_text: str, *, typing_secs: int = 0, seq_idx: int = 0):
 		discussion_group_id = self.channel_to_discussion.get(channel_id)
 		if not discussion_group_id:
 			try:
@@ -504,7 +519,7 @@ class BotRunner:
 					discussion_group_id = req.chats[0].id
 					self.channel_to_discussion[channel_id] = discussion_group_id
 			except Exception as e:
-				log_bus.push(f"[{channel_name}] [error] Cannot find discussion thread: {type(e).__name__}")
+				log_bus.push(f"[{seq_idx}] [{channel_name}] [error] Cannot find discussion thread: {type(e).__name__}")
 				metrics.inc("errors_total")
 				return
 		try:
@@ -512,33 +527,31 @@ class BotRunner:
 			discussion_message = await client(GetDiscussionMessageRequest(peer=await client.get_input_entity(channel_id), msg_id=message_id))
 			if discussion_message.messages:
 				reply_to_msg_id = discussion_message.messages[0].id
-				# typing simulation before sending
+				# typing simulation before sending (concise: no extra logs)
 				try:
-					if await self._is_typing_enabled():
-						min_t, max_t = await self._get_typing_delays()
-						secs = random.randint(min(min_t, max_t), max(min_t, max_t))
-						if secs > 0:
-							log_bus.push(f"[{channel_name}] [send] Typing… {secs}s")
-							async with client.action(discussion_peer, 'typing'):
-								await asyncio.sleep(secs)
+					if typing_secs > 0:
+						async with client.action(discussion_peer, 'typing'):
+							await asyncio.sleep(typing_secs)
 				except Exception:
 					pass
 				await client.send_message(entity=discussion_peer, message=comment_text, reply_to=reply_to_msg_id)
-				log_bus.push(f"[{channel_name}] [send] Comment sent")
+				first = (comment_text or "")[:20]
+				trail = "…" if comment_text and len(comment_text) > 20 else ""
+				log_bus.push(f"[{seq_idx}] [{channel_name}] [success] Comment \"{first}{trail}\" sent")
 			else:
-				log_bus.push(f"[{channel_name}] [send] No discussion message to reply")
+				log_bus.push(f"[{seq_idx}] [{channel_name}] [send] No discussion message to reply")
 		except errors.FloodWaitError as e:
 			self.cool_down_until = datetime.utcnow() + timedelta(seconds=e.seconds)
 			metrics.inc("floodwait_events_total")
-			log_bus.push(f"[{channel_name}] [send] FloodWait {e.seconds}s → cooldown")
+			log_bus.push(f"[{seq_idx}] [{channel_name}] [send] FloodWait {e.seconds}s → cooldown")
 		except errors.PeerFloodError:
 			min_h, max_h = await self._get_peer_flood_cooldown_hours_range()
 			hours = random.randint(min(min_h, max_h), max(min_h, max_h))
 			self.cool_down_until = datetime.utcnow() + timedelta(hours=hours)
-			log_bus.push(f"[{channel_name}] [send] PeerFlood → long cooldown {hours}h")
+			log_bus.push(f"[{seq_idx}] [{channel_name}] [send] PeerFlood → long cooldown {hours}h")
 		except Exception as e:
 			metrics.inc("errors_total")
-			log_bus.push(f"[{channel_name}] [error] Send error: {type(e).__name__}: {e}")
+			log_bus.push(f"[{seq_idx}] [{channel_name}] [error] Send error: {type(e).__name__}: {e}")
 
 	async def _get_ai_settings(self):
 		from .db import KVSetting

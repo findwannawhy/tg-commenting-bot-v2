@@ -125,6 +125,16 @@
 			</div>
 
 			<div class="section-card">
+				<div class="section-title">Слова/фразы рекламы (эвристика)</div>
+				<div class="section-grid">
+					<label class="full"><span title="Список слов и фраз, при наличии которых пост считается рекламным и пропускается без вызова AI. Регистр и пробелы не влияют. Можно писать через запятую или с новой строки. Кавычки необязательны." style="cursor: help;">Ad keywords</span>
+						<textarea name="ads_keywords" rows="4" placeholder="'промокод', 'скидка', 'ссылка в био'\n'подписывайтесь', 'по ссылке', '#реклама'">{{ values.get('ads_keywords') or '' }}</textarea>
+					</label>
+					<div class="helper">Формат примера: 'слово_1', 'приложение два', '...' — можно также по одному в строке. Пробелы вокруг и регистр игнорируются при проверке.</div>
+				</div>
+			</div>
+
+			<div class="section-card">
 				<div class="section-title">Отправка комментариев</div>
 				<div class="section-grid">
 					<label><span title="Минимальная задержка перед отправкой комментария (в секундах)." style="cursor: help;">Sending: Min Delay (s)</span>

@@ -71,7 +71,6 @@ class AIService:
             (prompt or "").strip()
             or "Проанализируй текст ниже и верни ОДНО число от 0.00 до 1.00, представляющее вероятность того, что это РЕКЛАМА."
         )
-        log_bus.push(f"{ch_prefix}[ads] Start classification, post-preview='{self._shorten(text, 25)}', prompt-preview='{self._shorten(prompt_text, 25)}', image={bool(image_base64)}")
         model_to_use = model or self.default_model or "gpt-4o-mini"
 
         try:
@@ -91,7 +90,6 @@ class AIService:
 
             if not out_text:
                 fb_model = "gpt-4o-mini"
-                log_bus.push(f"{ch_prefix}[ads] Empty response → fallback to {fb_model} (Responses).")
                 req_kwargs_fb = self._build_responses_kwargs(
                     model_name=fb_model,
                     instructions=prompt_text,
@@ -105,13 +103,8 @@ class AIService:
 
             val = self._parse_probability(out_text or "", channel_context=channel_context)
             ad_p = max(0.0, min(1.0, val))
-            dur = time.perf_counter() - start_t
-            log_bus.push(f"{ch_prefix}[ads] Completed. Time={dur:.3f}s. Ad probability={ad_p:.3f}.")
             return ad_p
         except Exception as e:
-            log_bus.push(f"{ch_prefix}[ads] Error {type(e).__name__}: {e}")
-            dur = time.perf_counter() - start_t
-            log_bus.push(f"{ch_prefix}[ads] Completed with error. Time={dur:.3f}s. Returning 0.00.")
             return 0.0
 
     # --- Генерация комментария ----------------------------------------------
@@ -134,7 +127,6 @@ class AIService:
             return ""
 
         model_to_use = model or self.default_model or "gpt-4o-mini"
-        log_bus.push(f"{ch_prefix}[comment] Start generation, post-preview='{self._shorten(post_text, 25)}', prompt-preview='{self._shorten(prompt_system, 25)}', image={bool(image_base64)}")
         parts = self._make_responses_user_parts(text=(post_text or "")[:8000], image_base64=image_base64)
         req_kwargs = self._build_responses_kwargs(
             model_name=model_to_use,
@@ -151,7 +143,6 @@ class AIService:
 
         if not text:
             fb_model = "gpt-4o-mini"
-            log_bus.push(f"{ch_prefix}[comment] Empty response → fallback to {fb_model} (Responses).")
             req_kwargs_fb = self._build_responses_kwargs(
                 model_name=fb_model,
                 instructions=prompt_system or "",
@@ -164,11 +155,6 @@ class AIService:
             text = self._responses_call("comment(fallback)", req_kwargs_fb, channel_context=channel_context)
 
         normalized = self._normalize_comment_text(text or "", channel_context=channel_context)
-        log_bus.push(f"{ch_prefix}[comment] Final comment text → '{normalized}'")
-        dur = time.perf_counter() - start_t
-        log_bus.push(
-            f"{ch_prefix}[comment] Completed. Time={dur:.3f}s. Result length={len(normalized)}."
-        )
         return normalized
 
     # --- Универсальный вызов Responses --------------------------------------
@@ -198,18 +184,12 @@ class AIService:
         if max_output_tokens is not None:
             mt = int(max_output_tokens)
             if caps["is_reasoning"] and mt < 16:
-                log_bus.push(
-                    f"{ch_prefix}[responses] Reasoning models require a reasonable minimum max_output_tokens; correcting {mt} → 16."
-                )
                 mt = 16
             kwargs["max_output_tokens"] = mt
 
         if caps["is_reasoning"]:
             # Игнорируем temperature/top_p — не поддерживаются reasoning‑семейством
-            if temperature is not None or top_p is not None:
-                log_bus.push(
-                    f"{ch_prefix}[responses] Warning: temperature/top_p passed, but they are ignored for reasoning models."
-                )
+            # temperature/top_p are ignored for reasoning models
             if reasoning_effort:
                 kwargs["reasoning"] = {"effort": reasoning_effort}
             if verbosity:
@@ -223,7 +203,6 @@ class AIService:
             if top_p is not None:
                 kwargs["top_p"] = float(min(1.0, top_p))
 
-        log_bus.push(f"{ch_prefix}[ai] Request model='{model_name}', reasoning={caps['is_reasoning']}, temperature={temperature}, top_p={top_p}, reasoning_effort={reasoning_effort}, verbosity={verbosity}")
         return kwargs
 
     def _responses_call(self, prefix: str, req_kwargs: Dict[str, Any], channel_context: Optional[str] = None) -> str:
@@ -231,11 +210,8 @@ class AIService:
         try:
             resp = self.client.responses.create(**req_kwargs)
             out_text = self._collect_responses_text(resp, channel_context=channel_context)
-            self._log_usage_and_reqid(resp, prefix=prefix, channel_context=channel_context)
-            log_bus.push(f"{ch_prefix}[{prefix}] Response received, text len={len(out_text)}")
             return out_text
         except Exception as e:
-            log_bus.push(f"{ch_prefix}[{prefix}] Responses API error: {type(e).__name__}: {e}")
             return ""
 
     # --- Вспомогательные возможности моделей --------------------------------
@@ -418,7 +394,6 @@ class AIService:
         if m:
             val = m.group(0).replace(",", ".")
             return float(val)
-        log_bus.push(f"{ch_prefix}[ads] Failed to recognize probability in model response: '{self._shorten(s, 100)}'")
         raise ValueError("cannot parse probability")
 
     def _normalize_comment_text(self, raw: str, channel_context: Optional[str] = None) -> str:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from typing import Annotated
 
 from fastapi import FastAPI, Depends, Request, Response, status, Form, HTTPException
@@ -10,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .config import settings
+from .ad_detector import set_ad_keywords
 from .db import init_db, get_session, Channel, KVSetting
 from .logging_bus import log_bus
 from .bot_runner import BotRunner
@@ -56,6 +58,17 @@ class AppServer:
 		@app.on_event("startup")
 		async def _startup():
 			await init_db()
+			# load ad keywords from DB on startup
+			try:
+				async with get_session() as session:
+					val = await session.scalar(select(KVSetting.value).where(KVSetting.key == "ads_keywords"))
+					phrases: list[str] = []
+					if val:
+						phrases = _parse_ads_keywords(val)
+					set_ad_keywords(phrases)
+			except Exception:
+				# If anything goes wrong, keep heuristic disabled (AI will be used)
+				set_ad_keywords([])
 
 		@app.get("/health")
 		async def health():
@@ -177,6 +190,7 @@ class AppServer:
 					"gpt5_effort", "gpt5_verbosity",
 					"ads_prompt", "ads_temperature", "ads_top_p", "ads_max_tokens",
 					"ads_gpt5_effort", "ads_gpt5_verbosity",
+					"ads_keywords",
 					"min_delay", "max_delay", "ad_prob_thr", "dry_run", "proxy_url",
 					"skip_min", "skip_max",
 					"group_init_min_delay", "group_init_max_delay", "auto_join_discussions", "auto_join_channels",
@@ -214,6 +228,13 @@ class AppServer:
 					else:
 						session.add(KVSetting(key=k, value=final_v))
 				await session.commit()
+			# apply new ad keywords to detector immediately (no restart needed)
+			try:
+				raw = str(form.get("ads_keywords", ""))
+				phrases = _parse_ads_keywords(raw)
+				set_ad_keywords(phrases)
+			except Exception:
+				set_ad_keywords([])
 			log_bus.push("[web] Settings saved")
 			return RedirectResponse("/settings", status_code=303)
 
@@ -246,6 +267,27 @@ class AppServer:
 		async def ctl_restart(request: Request, _: auth):
 			await self.bot.restart()
 			return RedirectResponse("/", status_code=303)
+
+
+def _parse_ads_keywords(raw: str) -> list[str]:
+	# Accept items separated by commas or newlines; single or double quotes optional
+	if not raw:
+		return []
+	text = str(raw)
+	# Normalize newlines to commas to handle both separators
+	text = text.replace("\r", "")
+	parts = []
+	for chunk in re.split(r",|\n", text):
+		item = chunk.strip()
+		if not item:
+			continue
+		# strip surrounding quotes if present
+		if (item.startswith("'") and item.endswith("'")) or (item.startswith('"') and item.endswith('"')):
+			item = item[1:-1]
+		item = item.strip()
+		if item:
+			parts.append(item)
+	return parts
 
 
 app_server = AppServer()
