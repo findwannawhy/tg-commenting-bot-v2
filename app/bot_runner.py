@@ -159,18 +159,22 @@ class BotRunner:
 			log_bus.push("[client] Already authorized.")
 
 	async def _refresh_ai_from_settings(self) -> None:
-		# read OPENAI_API_KEY and PROXY_URL overrides from DB
+		# read OPENAI_API_KEY, PROXY_URL and OPENAI_BASE_URL overrides from DB
 		from .db import get_session, KVSetting
 		api_key: Optional[str] = None
 		proxy_url: Optional[str] = None
+		base_url: Optional[str] = None
 		async with get_session() as session:
 			api_key_db = await session.scalar(select(KVSetting.value).where(KVSetting.key == "openai_api_key"))
 			proxy_url_db = await session.scalar(select(KVSetting.value).where(KVSetting.key == "proxy_url"))
+			base_url_db = await session.scalar(select(KVSetting.value).where(KVSetting.key == "openai_base_url"))
 			if api_key_db:
 				api_key = api_key_db
 			if proxy_url_db:
 				proxy_url = proxy_url_db
-		self.ai = AIService(api_key, settings.model_default, proxy_url=proxy_url) if api_key else None
+			if base_url_db:
+				base_url = base_url_db
+		self.ai = AIService(api_key, settings.model_default, proxy_url=proxy_url, base_url=base_url) if api_key else None
 
 	async def _login_flow(self) -> None:
 		assert self.client is not None

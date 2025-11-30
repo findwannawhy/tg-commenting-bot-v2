@@ -251,6 +251,9 @@
 					<label class="full"><span title="Ключ доступа OpenAI (начинается с sk-...)." style="cursor: help;">Secrets: OPENAI_API_KEY</span>
 						<input name="openai_api_key" value="{{ values.get('openai_api_key') or '' }}" />
 					</label>
+					<label class="full"><span title="Базовый URL для OpenAI API (опционально). Если пусто, используется официальный API https://api.openai.com/v1. Пример: https://api.openai.com/v1 или https://ваш-прокси.com/v1" style="cursor: help;">Secrets: OPENAI_BASE_URL</span>
+						<input name="openai_base_url" value="{{ values.get('openai_base_url') or '' }}" placeholder="https://api.openai.com/v1" />
+					</label>
 					<div class="helper">Для применения новых секретных ключей требуется перезапуск (кнопка на главной панели).</div>
 				</div>
 			</div>

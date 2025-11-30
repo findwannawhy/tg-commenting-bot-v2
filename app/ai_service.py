@@ -21,9 +21,13 @@ class AIService:
       • Для обычных моделей (gpt‑4o, gpt‑4.1, …) — отправляем `temperature`/`top_p`.
     """
 
-    def __init__(self, api_key: Optional[str], default_model: str, proxy_url: Optional[str] = None) -> None:
+    def __init__(self, api_key: Optional[str], default_model: str, proxy_url: Optional[str] = None, base_url: Optional[str] = None) -> None:
         self._maybe_set_proxy_env(proxy_url)
-        self.client: Optional[OpenAI] = OpenAI(api_key=api_key) if api_key else None
+        # Если base_url не указан или пустой, используем официальный API OpenAI
+        client_kwargs = {"api_key": api_key}
+        if base_url and base_url.strip():
+            client_kwargs["base_url"] = base_url.strip()
+        self.client: Optional[OpenAI] = OpenAI(**client_kwargs) if api_key else None
         self.default_model = default_model
         try:
             if self.client:

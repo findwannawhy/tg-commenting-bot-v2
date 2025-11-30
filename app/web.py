@@ -196,7 +196,7 @@ class AppServer:
 					"group_init_min_delay", "group_init_max_delay", "auto_join_discussions", "auto_join_channels",
 					"typing_enabled", "typing_min", "typing_max", "simulate_read_enabled",
 					"peer_flood_cooldown_min_h", "peer_flood_cooldown_max_h", "join_limit_per_hour", "join_min_interval_s", "join_max_interval_s",
-					"telegram_api_id", "telegram_api_hash", "telegram_phone", "openai_api_key",
+					"telegram_api_id", "telegram_api_hash", "telegram_phone", "openai_api_key", "openai_base_url",
 				]
 				vals = {}
 				for k in keys:
